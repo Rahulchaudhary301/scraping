@@ -66,11 +66,6 @@
 
 //         let data = [];
 
-//         // 🔥 Correct class selector
-//         // $(".wp-block-latest-posts__post-title").each((i, el) => {
-//         //   data.push($(el).text().trim());
-//         // });
-
 //         $(".wp-block-latest-posts__post-title").each((i, el) => {
 //             data.push({
 //                 title: $(el).text().trim(),
@@ -201,6 +196,13 @@
 
 
 
+
+
+
+
+
+
+
 const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
@@ -208,22 +210,33 @@ const cors = require("cors");
 const puppeteer = require("puppeteer");
 
 const app = express();
-app.use(cors());
+
+// ✅ Middlewares
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"]
+}));
+
 app.use(express.json());
 
-let isRunning = false;
-let currentNumber = null;
-
-// ✅ Home
+// ✅ Home route
 app.get("/", (req, res) => {
-  res.send("Server running 🚀");
+  res.send("Server is running 🚀");
 });
 
-// ✅ Scraping API
+
+// ==============================
+// ✅ SCRAPING API
+// ==============================
 app.get("/api/data", async (req, res) => {
   try {
     const response = await axios.get("https://www.sarkariresult.com/", {
-      headers: { "User-Agent": "Mozilla/5.0" },
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      timeout: 10000,
     });
 
     const $ = cheerio.load(response.data);
@@ -236,89 +249,105 @@ app.get("/api/data", async (req, res) => {
       });
     });
 
-    res.json({ success: true, data });
+    // fallback
+    if (data.length === 0) {
+      $("a").each((i, el) => {
+        const text = $(el).text().trim();
+        const link = $(el).attr("href");
+
+        if (text.length > 30 && link) {
+          data.push({
+            title: text,
+            link: link,
+          });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      count: data.length,
+      data,
+    });
+
   } catch (err) {
-    res.status(500).json({ success: false });
+    console.log("Scraping error:", err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
 
-// ✅ Puppeteer FIXED (Render Compatible 🔥)
-async function loginAndScrape(number) {
+
+// ==============================
+// ✅ PUPPETEER LOGIN (OTP TRIGGER)
+// ==============================
+async function loginAndTriggerOTP(number) {
   const browser = await puppeteer.launch({
     headless: "new",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu"
-    ],
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   const page = await browser.newPage();
 
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537.36"
-  );
-
   await page.goto("https://balloondekor.com/", {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle2",
+    timeout: 60000,
   });
 
-  await page.waitForSelector('button[aria-label="Sign In"]');
+  // Click Sign In
+  await page.waitForSelector('button[aria-label="Sign In"]', {
+    timeout: 15000,
+  });
   await page.click('button[aria-label="Sign In"]');
 
-  await page.waitForSelector('input[type="tel"]');
+  // Enter phone number
+  await page.waitForSelector('input[type="tel"]', {
+    timeout: 15000,
+  });
   await page.type('input[type="tel"]', number);
 
-  // OTP click (IMPORTANT)
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find(b =>
-      b.innerText.includes("Send Verification Code")
-    );
-    if (btn) btn.click();
-  });
+  // Press Enter (OTP trigger)
+  await page.keyboard.press("Enter");
 
+  // wait for OTP request
   await page.waitForTimeout(5000);
 
   await browser.close();
 }
 
-// ✅ LOOP
-async function runLoop() {
-  if (!isRunning) return;
 
-  try {
-    await loginAndScrape(currentNumber);
-  } catch (err) {
-    console.log(err.message);
-  }
-
-  setTimeout(runLoop, 10000);
-}
-
-// ✅ START
-app.get("/login", (req, res) => {
+// ==============================
+// ✅ LOGIN API (NO LOOP)
+// ==============================
+app.get("/login", async (req, res) => {
   const number = req.query.num;
 
-  if (!number) return res.send("Number required");
+  if (!number) {
+    return res.status(400).send("Number is required");
+  }
 
-  if (isRunning) return res.send("Already running");
+  try {
+    await loginAndTriggerOTP(number);
 
-  isRunning = true;
-  currentNumber = number;
+    res.send("OTP Triggered ✅");
 
-  runLoop();
+  } catch (err) {
+    console.log("Login error:", err.message);
 
-  res.send("Started");
+    res.status(500).send("Failed ❌");
+  }
 });
 
-// ✅ STOP
-app.get("/stop", (req, res) => {
-  isRunning = false;
-  currentNumber = null;
-  res.send("Stopped");
-});
 
-// ✅ PORT FIX (VERY IMPORTANT)
+// ==============================
+// ✅ PORT (Render Important)
+// ==============================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} 🚀`);
+});
+
