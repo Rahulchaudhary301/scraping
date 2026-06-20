@@ -135,26 +135,6 @@
 //     await page.type('input[type="tel"]', number);
 
 
-//     // await page.evaluate(() => {
-//     //     const buttons = [...document.querySelectorAll("button")];
-//     //     const btn = buttons.find(b => b.innerText.includes("Send Verification Code"));
-//     //     if (btn) btn.click();
-//     // });
-
-//     // await page.waitForSelector('button[aria-label="Close"]');
-//     // await page.click('button[aria-label="Close"]');
-
-
-
-//     // Wait for navigation
-//     //await page.waitForNavigation();
-
-//     // Get data
-//     //   const data = await page.evaluate(() => {
-//     //     return document.querySelector("h1").innerText;
-//     //   });
-
-
 //     await browser.close();
 // }
 
@@ -210,26 +190,11 @@
 
 
 
-
-
-
-
-
-
-// // app.get("/login", async (req, res) => {
-// //   await loginAndScrape();
-// //   res.send("Login done");
-// // });
-
-
-
-
-
-
-
 // app.listen(5000, () => {
 //     console.log("Server running on http://localhost:5000 🚀");
 // });
+
+
 
 
 
@@ -273,15 +238,20 @@ app.get("/api/data", async (req, res) => {
 
     res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false });
   }
 });
 
-// ✅ Puppeteer Function (FIXED 🔥)
+// ✅ Puppeteer FIXED (Render Compatible 🔥)
 async function loginAndScrape(number) {
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
+    ],
   });
 
   const page = await browser.newPage();
@@ -300,9 +270,9 @@ async function loginAndScrape(number) {
   await page.waitForSelector('input[type="tel"]');
   await page.type('input[type="tel"]', number);
 
-  // 🔥 Click OTP button
+  // OTP click (IMPORTANT)
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find((b) =>
+    const btn = [...document.querySelectorAll("button")].find(b =>
       b.innerText.includes("Send Verification Code")
     );
     if (btn) btn.click();
@@ -313,7 +283,7 @@ async function loginAndScrape(number) {
   await browser.close();
 }
 
-// ✅ Loop
+// ✅ LOOP
 async function runLoop() {
   if (!isRunning) return;
 
@@ -323,7 +293,7 @@ async function runLoop() {
     console.log(err.message);
   }
 
-  setTimeout(runLoop, 10000); // 10 sec
+  setTimeout(runLoop, 10000);
 }
 
 // ✅ START
@@ -349,6 +319,6 @@ app.get("/stop", (req, res) => {
   res.send("Stopped");
 });
 
-// ✅ PORT FIX (IMPORTANT)
+// ✅ PORT FIX (VERY IMPORTANT)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server on ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
