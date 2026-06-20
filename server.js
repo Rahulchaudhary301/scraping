@@ -281,65 +281,101 @@ app.get("/api/data", async (req, res) => {
 });
 
 
-// ==============================
-// ✅ PUPPETEER LOGIN (OTP TRIGGER)
-// ==============================
-async function loginAndTriggerOTP(number) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
 
-  const page = await browser.newPage();
 
-  await page.goto("https://balloondekor.com/", {
-    waitUntil: "networkidle2",
-    timeout: 60000,
-  });
 
-  // Click Sign In
-  await page.waitForSelector('button[aria-label="Sign In"]', {
-    timeout: 15000,
-  });
-  await page.click('button[aria-label="Sign In"]');
 
-  // Enter phone number
-  await page.waitForSelector('input[type="tel"]', {
-    timeout: 15000,
-  });
-  await page.type('input[type="tel"]', number);
 
-  // Press Enter (OTP trigger)
-  await page.keyboard.press("Enter");
 
-  // wait for OTP request
-  await page.waitForTimeout(5000);
 
-  await browser.close();
+
+
+async function loginAndScrape(number) {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+
+    await page.goto("https://balloondekor.com/");
+
+
+    // Click login
+
+    // Click login
+    await page.waitForSelector('button[aria-label="Sign In"]');
+    await page.click('button[aria-label="Sign In"]');
+
+    // Enter number
+    await page.waitForSelector('input[type="tel"]');
+    await page.type('input[type="tel"]', number);
+
+
+    await browser.close();
 }
 
 
-// ==============================
-// ✅ LOGIN API (NO LOOP)
-// ==============================
-app.get("/login", async (req, res) => {
-  const number = req.query.num;
 
-  if (!number) {
-    return res.status(400).send("Number is required");
-  }
+
+
+let isRunning = false;
+let currentNumber = null;
+
+async function runLoop() {
+  if (!isRunning) return;
 
   try {
-    await loginAndTriggerOTP(number);
-
-    res.send("OTP Triggered ✅");
-
+   // console.log("Running for:", currentNumber);
+    await loginAndScrape(currentNumber);
   } catch (err) {
-    console.log("Login error:", err.message);
-
-    res.status(500).send("Failed ❌");
+    console.error("Error:", err.message);
   }
+
+  // run again after 30 seconds
+  setTimeout(runLoop, 3000);
+}
+
+// START API
+app.get("/login", async (req, res) => {
+  const number = req.query.num; // ✅ correct for GET
+  
+
+  if (!number) {
+    return res.send("Number is required");
+  }
+
+  if (isRunning) {
+    return res.send("Already running...");
+  }
+
+  isRunning = true;
+  currentNumber = number;
+
+  runLoop();
+
+  res.send("Started loop (every 10s)");
 });
+
+// STOP API (important 🔥)
+app.get("/stop", (req, res) => {
+  isRunning = false;
+  currentNumber = null;
+
+  res.send("Stopped");
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // ==============================
