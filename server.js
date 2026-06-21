@@ -157,7 +157,7 @@
 // // START API
 // app.get("/login", async (req, res) => {
 //   const number = req.query.num; // ✅ correct for GET
-  
+
 
 //   if (!number) {
 //     return res.send("Number is required");
@@ -286,64 +286,61 @@ const app = express();
 
 // ✅ Middlewares
 app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"]
+    origin: "*",
+    methods: ["GET", "POST"]
 }));
 
 app.use(express.json());
 
 // ✅ Home route
 app.get("/", (req, res) => {
-  res.send("Server is running 🚀");
+    res.send("Server is running 🚀");
 });
 
 // ==============================
 // 🔥 MAIN FUNCTION (FIXED)
 async function loginAndScrape(number) {
-  let browser;
 
-  try {
-    browser = await puppeteer.launch({
-      headless: true, // ✅ stable
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-      ]
-    });
 
-    const page = await browser.newPage();
+    try {
 
-    await page.goto("https://balloondekor.com/", {
-      waitUntil: "networkidle2",
-      timeout: 60000
-    });
+        const browser = await puppeteer.launch({
+            headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            args: ["--no-sandbox", "--disable-setuid-sandbox"]
+        });
 
-    // ✅ Click Sign In
-    await page.waitForSelector('button[aria-label="Sign In"]', { timeout: 15000 });
-    await page.click('button[aria-label="Sign In"]');
+        const page = await browser.newPage();
 
-    // ✅ Enter mobile number
-    await page.waitForSelector('input[type="tel"]', { timeout: 15000 });
-    await page.type('input[type="tel"]', number, { delay: 100 });
+        await page.goto("https://balloondekor.com/", {
+            waitUntil: "networkidle2",
+            timeout: 60000
+        });
 
-    await page.keyboard.press("Enter");
+        // ✅ Click Sign In
+        await page.waitForSelector('button[aria-label="Sign In"]', { timeout: 15000 });
+        await page.click('button[aria-label="Sign In"]');
 
-    // ✅ FIX: NO waitForTimeout
-    await new Promise(resolve => setTimeout(resolve, 5000));
+        // ✅ Enter mobile number
+        await page.waitForSelector('input[type="tel"]', { timeout: 15000 });
+        await page.type('input[type="tel"]', number, { delay: 100 });
 
-    console.log("OTP Triggered for:", number);
+        await page.keyboard.press("Enter");
 
-  } catch (err) {
-    console.error("Puppeteer Error:", err.message);
-    throw err;
+        // ✅ FIX: NO waitForTimeout
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
-  } finally {
-    if (browser) {
-      await browser.close(); // ✅ always close
+        console.log("OTP Triggered for:", number);
+
+    } catch (err) {
+        console.error("Puppeteer Error:", err.message);
+        throw err;
+
+    } finally {
+        if (browser) {
+            await browser.close(); // ✅ always close
+        }
     }
-  }
 }
 
 // ==============================
@@ -352,41 +349,41 @@ let isRunning = false;
 
 // ✅ LOGIN API
 app.get("/login", async (req, res) => {
-  const number = req.query.num;
+    const number = req.query.num;
 
-  if (!number) {
-    return res.status(400).send("Number is required ❌");
-  }
+    if (!number) {
+        return res.status(400).send("Number is required ❌");
+    }
 
-  if (isRunning) {
-    return res.send("Already running ⏳");
-  }
+    if (isRunning) {
+        return res.send("Already running ⏳");
+    }
 
-  isRunning = true;
+    isRunning = true;
 
-  try {
-    await loginAndScrape(number);
+    try {
+        await loginAndScrape(number);
 
-    isRunning = false;
-    res.send("OTP Triggered ✅");
+        isRunning = false;
+        res.send("OTP Triggered ✅");
 
-  } catch (err) {
-    isRunning = false;
+    } catch (err) {
+        isRunning = false;
 
-    console.error("API Error:", err.message);
-    res.status(500).send("Failed ❌");
-  }
+        console.error("API Error:", err.message);
+        res.status(500).send("Failed ❌");
+    }
 });
 
 // ✅ STOP API
 app.get("/stop", (req, res) => {
-  isRunning = false;
-  res.send("Stopped 🛑");
+    isRunning = false;
+    res.send("Stopped 🛑");
 });
 
 // ==============================
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} 🚀`);
+    console.log(`Server running on port ${PORT} 🚀`);
 });
