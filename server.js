@@ -300,15 +300,15 @@ app.get("/", (req, res) => {
 // ==============================
 // 🔥 MAIN FUNCTION (FIXED)
 async function loginAndScrape(number) {
-
+    let browser;
 
     try {
 
-        const browser = await puppeteer.launch({
-            headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-            args: ["--no-sandbox", "--disable-setuid-sandbox"]
-        });
+       const browser = await puppeteer.launch({
+  headless: true,
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
+});
 
         const page = await browser.newPage();
 
@@ -330,7 +330,7 @@ async function loginAndScrape(number) {
         // ✅ FIX: NO waitForTimeout
         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        console.log("OTP Triggered for:", number);
+       // console.log("OTP Triggered for:", number);
 
     } catch (err) {
         console.error("Puppeteer Error:", err.message);
