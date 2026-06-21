@@ -290,52 +290,139 @@ app.get("/api/data", async (req, res) => {
 
 
 
-async function loginAndScrape(number) {
-    const browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
+// async function loginAndScrape(number) {
+//     const browser = await puppeteer.launch({ headless: false });
+//     const page = await browser.newPage();
 
-    await page.goto("https://balloondekor.com/");
-
-
-    // Click login
-
-    // Click login
-    await page.waitForSelector('button[aria-label="Sign In"]');
-    await page.click('button[aria-label="Sign In"]');
-
-    // Enter number
-    await page.waitForSelector('input[type="tel"]');
-    await page.type('input[type="tel"]', number);
+//     await page.goto("https://balloondekor.com/");
 
 
-    await browser.close();
-}
+//     // Click login
+
+//     // Click login
+//     await page.waitForSelector('button[aria-label="Sign In"]');
+//     await page.click('button[aria-label="Sign In"]');
+
+//     // Enter number
+//     await page.waitForSelector('input[type="tel"]');
+//     await page.type('input[type="tel"]', number);
 
 
+//     await browser.close();
+// }
 
 
 
-let isRunning = false;
-let currentNumber = null;
 
-async function runLoop() {
-  if (!isRunning) return;
 
-  try {
-   // console.log("Running for:", currentNumber);
-    await loginAndScrape(currentNumber);
-  } catch (err) {
-    console.error("Error:", err.message);
-  }
+// let isRunning = false;
+// let currentNumber = null;
 
-  // run again after 30 seconds
-  setTimeout(runLoop, 3000);
-}
+// async function runLoop() {
+//   if (!isRunning) return;
 
-// START API
-app.get("/login", async (req, res) => {
-  const number = req.query.num; // ✅ correct for GET
+//   try {
+//    // console.log("Running for:", currentNumber);
+//     await loginAndScrape(currentNumber);
+//   } catch (err) {
+//     console.error("Error:", err.message);
+//   }
+
+//   // run again after 30 seconds
+//   setTimeout(runLoop, 3000);
+// }
+
+// // START API
+// app.get("/login", async (req, res) => {
+//   const number = req.query.num; // ✅ correct for GET
   
+
+//   if (!number) {
+//     return res.send("Number is required");
+//   }
+
+//   if (isRunning) {
+//     return res.send("Already running...");
+//   }
+
+//   isRunning = true;
+//   currentNumber = number;
+
+//   runLoop();
+
+//   res.send("Started loop (every 10s)");
+// });
+
+// // STOP API (important 🔥)
+// app.get("/stop", (req, res) => {
+//   isRunning = false;
+//   currentNumber = null;
+
+//   res.send("Stopped");
+// });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function loginAndScrape(number) {
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  });
+
+  const page = await browser.newPage();
+
+  await page.goto("https://balloondekor.com/", {
+    waitUntil: "networkidle2"
+  });
+
+  await page.waitForSelector('button[aria-label="Sign In"]');
+  await page.click('button[aria-label="Sign In"]');
+
+  await page.waitForSelector('input[type="tel"]');
+  await page.type('input[type="tel"]', number);
+
+  await page.keyboard.press("Enter");
+
+  // ✅ FIXED DELAY
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  await browser.close();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ❌ REMOVE LOOP (Render ke liye dangerous)
+let isRunning = false;
+
+
+// ✅ CLEAN API (single run)
+app.get("/login", async (req, res) => {
+  const number = req.query.num;
 
   if (!number) {
     return res.send("Number is required");
@@ -346,20 +433,75 @@ app.get("/login", async (req, res) => {
   }
 
   isRunning = true;
-  currentNumber = number;
 
-  runLoop();
+  try {
+    await loginAndScrape(number);
+    isRunning = false;
 
-  res.send("Started loop (every 10s)");
+    res.send("OTP Triggered ✅");
+
+  } catch (err) {
+    isRunning = false;
+
+    console.error("Error:", err.message);
+    res.status(500).send("Failed ❌");
+  }
 });
 
-// STOP API (important 🔥)
+
+// ❌ REMOVE THIS (IMPORTANT)
+// runLoop()
+// setTimeout loop ❌
+
+
+// STOP API (optional)
 app.get("/stop", (req, res) => {
   isRunning = false;
-  currentNumber = null;
-
   res.send("Stopped");
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
